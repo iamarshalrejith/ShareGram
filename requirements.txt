@@ -4,3 +4,6 @@ fastapi-users[sqlalchemy]
 imagekitio
 uvicorn[standard]
 aiosqlite
+streamlit
+requests
+python-multipart

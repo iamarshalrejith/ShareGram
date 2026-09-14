@@ -11,11 +11,13 @@ from fastapi import Depends
 
 DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
+
 class Base(DeclarativeBase):
     pass
 
+
 class User(SQLAlchemyBaseUserTableUUID, Base):
-   post =  relationship("Post", back_populates="user")
+    posts = relationship("Post", back_populates="user", cascade="all, delete-orphan")
 
 
 class Post(Base):
@@ -23,61 +25,27 @@ class Post(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
     caption = Column(Text)
-    url = Column(String,nullable=False)
-    file_type = Column(String,nullable=False)
+    url = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)
     file_name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     user = relationship("User", back_populates="posts")
 
 
 engine = create_async_engine(DATABASE_URL)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
+
 async def create_db_and_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
 
+
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     yield SQLAlchemyUserDatabase(session, User)
-
-# Notes:
-
-# sqlite → database type.
-# aiosqlite → Python driver used to communicate with SQLite asynchronously.
-# Engine → manages communication with the database.
-# Session → performs/read/writes database operations.
-# SQLAlchemy → sits between your Python code and the database.
-# SQLite → actually stores the data inside test.db.
-# sqlalchemy.orm → DeclarativeBase → base class for defining database models/tables.
-# Tables → organize the stored data, e.g. Users, Orders, Products.
-
-
-'''
-              OUR PYTHON APP
-                    │
-                    ↓
-               SQLAlchemy
-                    │
-             ┌──────┴──────┐
-             │             │
-          Engine         Session
-             │             │
-             └──────┬──────┘
-                    ↓
-                 SQLite
-                    ↓
-                test.db
-                    ↓
-              ┌───────────┐
-              │   Users   │
-              ├───────────┤
-              │   Orders  │
-              ├───────────┤
-              │  Products │
-              └───────────┘
-'''
